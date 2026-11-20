@@ -123,6 +123,11 @@ public class Main {
         for (int i = 0; i < count; i++) {
             String label = "P" + (i + 1);
             if (manual) System.out.printf("\n");
+            int priority = 0;
+            if (usePriority && manual) {
+                priority = readNumber(input, String.format("%s priority", label), 1, 99);
+                if (priority == -1) return null;
+            }
             int arrival;
             if (manual) {
                 arrival = readNumber(input, String.format("%s arrival time in ms", label), 0, 999);
@@ -138,14 +143,8 @@ public class Main {
             }
             if (burst == -1) return null;
 
-            int priority = 0;
-            if (usePriority) {
-                if (manual) {
-                    priority = readNumber(input, String.format("%s priority", label), 1, 99);
-                } else {
-                    priority = random.nextInt(5) + 1;
-                }
-                if (priority == -1) return null;
+            if (usePriority && !manual) {
+                priority = random.nextInt(5) + 1;
             }
             processes[i] = new CpuProcess(i + 1, arrival, burst, priority);
         }

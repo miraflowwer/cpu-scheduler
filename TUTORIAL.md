@@ -1,6 +1,6 @@
 # CPU scheduling tutorial
 
-[Home](../README.md) · [Tutorial](TUTORIAL.md) · [Source guide](BRIEF.md) · [Run the program](../README.md#run-the-program)
+[Home](README.md) · [Tutorial](TUTORIAL.md) · [Source guide](BRIEF.md) · [Run the program](README.md#run-the-program)
 
 Start with three jobs. Follow them through six schedules, then check your own prediction.
 
@@ -18,7 +18,7 @@ The program uses one CPU and one burst per job. All times are in milliseconds (m
 
 ## Try the example
 
-Use these three jobs for every run. Enter each value on its own line. Enter the priority values only for option 4.
+Use these three jobs for every run. Enter each value on its own line. For option 4, enter each job’s priority first, then its arrival and burst. For other options, enter arrival and burst.
 
 | Job | Arrival (ms) | Burst (ms) | Priority |
 | --- | ---: | ---: | ---: |
