@@ -1,80 +1,119 @@
 # CPU scheduling tutorial
 
-[Home](README.md) · [Tutorial](TUTORIAL.md) · [Source guide](BRIEF.md) · [Run the program](README.md#run-the-program)
+[Home](README.md) · [Run the program](README.md#run-the-program) · [Source guide](BRIEF.md) · [Video lessons](README.md#video-lessons)
 
-Start with three jobs. Follow them through six schedules, then check your own prediction.
+Run the same three processes through all six scheduling modes and see how the choice of algorithm changes their waiting times.
 
 ## Learn the basics
 
-A **process** is a job that needs time on the CPU. The program calls the jobs **P1**, **P2**, and so on. The **scheduler** decides which job gets the CPU next.
+| Term | Meaning |
+| --- | --- |
+| **Process** | A job that needs CPU time. The simulator labels each one P1, P2, and so on. |
+| **Arrival time** | When a process first becomes ready to run. The CPU stays idle while no process is ready. |
+| **Burst time** | The total CPU time a process needs. **Remaining time** is how much of that burst it still needs. |
+| **Non-preemptive** | The selected process keeps the CPU until it finishes. |
+| **Preemptive** | The scheduler can pause the running process and give the CPU to another one. |
+| **Time quantum** | The maximum length of one Round Robin turn. |
 
-1. A job joins the **ready queue** at its **arrival time**. The ready queue holds jobs that can run and are waiting for the CPU.
-2. The scheduler chooses one ready job. If no job is ready, the CPU stays **idle** until the next job arrives.
-3. A job's **burst time** is the total CPU time it needs. Its **remaining time** is the CPU time it still needs after it has run for a while.
-4. In a **non-preemptive** schedule, a job runs until it finishes. In a **preemptive** schedule, the scheduler can pause a job and give the CPU to another job. Round Robin gives each job a turn. The **time quantum** is the longest a turn can last.
-5. The time when a job finishes is its **completion time**.
+The simulator models one CPU and one burst per process. All times are in milliseconds (ms). It skips input/output waits and the time needed to switch processes.
 
-The program uses one CPU and one burst per job. All times are in milliseconds (ms). The model skips input/output waits and the time it takes to switch jobs.
+## Run the example
 
-## Try the example
+Use these inputs for every mode.
 
-Use these three jobs for every run. Enter each value on its own line. For option 4, enter each job’s priority first, then its arrival and burst. For other options, enter arrival and burst.
-
-| Job | Arrival (ms) | Burst (ms) | Priority |
+| Process | Arrival (ms) | Burst (ms) | Priority |
 | --- | ---: | ---: | ---: |
 | P1 | 0 | 6 | 3 |
 | P2 | 1 | 3 | 1 |
 | P3 | 2 | 1 | 2 |
 
-For your first run, try **Shortest Remaining Time**. Enter `3` for the job count, `2` for Shortest Job First, `2` for preemptive mode, and `1` for manual input. Then enter `0`, `6`, `1`, `3`, `2`, and `1` for the three jobs.
+Start with **Shortest Remaining Time (SRT)**.
+
+1. Enter `3` for the number of processes.
+2. Choose `2` for **Shortest Job First**, then `2` for **Preemptive**.
+3. Choose `1` to enter values manually.
+4. Enter each arrival and burst on its own line. Enter `0` then `6` for P1, `1` then `3` for P2, and `2` then `1` for P3.
+
+When you try **Priority**, enter each process’s priority before its arrival and burst. A smaller number means higher priority. For **Round Robin**, enter a quantum of `2` after choosing manual input and before entering the process values.
 
 ### Read the Gantt chart
 
-A **Gantt chart** is a timeline. It shows who uses the CPU and when. Read it from left to right. `P1 0–1` means P1 runs from time 0 up to time 1. A job can appear again after a pause.
+Read the timeline from left to right. The first interval means P1 uses the CPU from 0 up to 1 ms. P1 appears again when it resumes at 5 ms. With [`--text-chart`](README.md#run-the-program), the SRT run prints these intervals.
 
-| Menu choice | Why the jobs run in this order | Time intervals (ms) |
-| --- | --- | --- |
-| **1 · First Come First Serve (FCFS)** | P1 arrives first and runs until it finishes. P2 arrived before P3, so P2 goes next. | `P1 0–6 · P2 6–9 · P3 9–10` |
-| **2 → 1 · Shortest Job First (SJF)** | Only P1 is ready at time 0, so it runs until time 6. P3 goes next because its burst is shorter than P2's. | `P1 0–6 · P3 6–7 · P2 7–10` |
-| **2 → 2 · Shortest Remaining Time (SRT)** | P2 arrives with 3 ms of work. P1 has 5 ms left, so P2 takes over. At time 2, P3 has 1 ms of work and P2 has 2 ms left. P3 takes over. When P3 finishes, P2 and then P1 finish their work. | `P1 0–1 · P2 1–2 · P3 2–3 · P2 3–5 · P1 5–10` |
-| **3 · Round Robin (quantum 2 ms)** | P1 runs for up to 2 ms. By the end of that turn, P2 and P3 have arrived. They get in line before P1 returns to the back. | `P1 0–2 · P2 2–4 · P3 4–5 · P1 5–7 · P2 7–8 · P1 8–10` |
-| **4 → 1 · Priority, non-preemptive** | A lower number means higher priority. P1 finishes its whole burst. P2 goes before P3 because 1 is lower than 2. | `P1 0–6 · P2 6–9 · P3 9–10` |
-| **4 → 2 · Priority, preemptive** | P2 has higher priority and takes over at time 1. P3 waits for P2 to finish, then goes before P1. | `P1 0–1 · P2 1–4 · P3 4–5 · P1 5–10` |
+```text
+Gantt chart (ms)
 
-A **tie** happens when two jobs are equally good choices. In FCFS, SJF, SRT, and Priority, the earlier arrival wins a tie. If both arrived at the same time, the lower job number wins. In SRT and preemptive Priority, the running job keeps the CPU if another job ties with it.
+P1  0 - 1 ms (1 ms)
+P2  1 - 2 ms (1 ms)
+P3  2 - 3 ms (1 ms)
+P2  3 - 5 ms (2 ms)
+P1  5 - 10 ms (5 ms)
+```
 
-Round Robin puts jobs that arrive at the same time in job number order. If a job arrives just as a turn ends, it joins the queue before the job that just ran goes back in line.
+P2 takes over at 1 ms because its 3 ms burst is shorter than P1’s 5 ms remaining. At 2 ms, P3 has 1 ms of work and P2 has 2 ms left, so P3 takes over. After P3 finishes, P2 resumes, followed by P1.
 
 ### Read the results
 
-- **Completion** is the end time of a job's last turn.
-- **Turnaround** is the time from arrival to completion. Subtract arrival from completion.
-- **Waiting** is the total time the job spent ready but waiting for the CPU. Subtract burst from turnaround.
+| Metric | How to find it | P2 in the SRT run |
+| --- | --- | --- |
+| **Completion** | End time of the process’s final interval | 5 ms |
+| **Turnaround** | Completion − arrival | 5 − 1 = 4 ms |
+| **Waiting** | Turnaround − burst | 4 − 3 = 1 ms |
 
-In the SRT run, P2 arrives at 1 ms and finishes at 5 ms. Its turnaround is `5 − 1 = 4 ms`. Its burst is 3 ms, so it waited `4 − 3 = 1 ms`.
-
-| Job | Completion (ms) | Turnaround (ms) | Waiting (ms) |
+| Process | Completion (ms) | Turnaround (ms) | Waiting (ms) |
 | --- | ---: | ---: | ---: |
 | P1 | 10 | 10 | 4 |
 | P2 | 5 | 4 | 1 |
 | P3 | 3 | 1 | 0 |
 
-To find the average waiting time, add the three waiting times and divide by 3. For these jobs, SRT has the lowest average waiting time. Try a different set of jobs to see how the results change.
+The average waiting time is `(4 + 1 + 0) ÷ 3 ≈ 1.67 ms`.
+
+## Compare all six schedules
+
+Each timeline entry gives the process and its start and end times in milliseconds. In the menu column, an arrow means to choose an algorithm and then its mode.
+
+| Mode | Menu | Timeline (ms) |
+| --- | --- | --- |
+| First Come First Serve (FCFS) | `1` | `P1 0–6` · `P2 6–9` · `P3 9–10` |
+| Shortest Job First (SJF) | `2 → 1` | `P1 0–6` · `P3 6–7` · `P2 7–10` |
+| Shortest Remaining Time (SRT) | `2 → 2` | `P1 0–1` · `P2 1–2` · `P3 2–3` · `P2 3–5` · `P1 5–10` |
+| Round Robin (2 ms quantum) | `3` | `P1 0–2` · `P2 2–4` · `P3 4–5` · `P1 5–7` · `P2 7–8` · `P1 8–10` |
+| Priority (non-preemptive) | `4 → 1` | `P1 0–6` · `P2 6–9` · `P3 9–10` |
+| Priority (preemptive) | `4 → 2` | `P1 0–1` · `P2 1–4` · `P3 4–5` · `P1 5–10` |
+
+FCFS follows arrival order. In non-preemptive SJF, P1 is the only process ready at 0 ms, so P3 can take its turn only after P1 finishes. In non-preemptive Priority, P2 also waits for P1 to finish. In preemptive Priority, P2 can take over as soon as it arrives. In Round Robin, P2 and P3 join the queue before P1 returns to the back after its first turn.
+
+<details>
+<summary>How the simulator handles ties</summary>
+
+- **FCFS, SJF, SRT, and Priority.** When two ready processes rank equally, the earlier arrival wins. If they arrived together, the lower process number wins.
+- **SRT and preemptive Priority.** The running process keeps the CPU when another process ties with it.
+- **Round Robin.** Simultaneous arrivals join in process number order. Any process arriving at the end of a turn joins the queue before the process that just ran can rejoin.
+
+</details>
+
+### Compare the averages
 
 | Schedule | Average turnaround (ms) | Average waiting (ms) |
 | --- | ---: | ---: |
 | FCFS | 7.33 | 4.00 |
 | SJF | 6.67 | 3.33 |
 | SRT | 5.00 | 1.67 |
-| Round Robin, quantum 2 ms | 6.67 | 3.33 |
-| Priority, non-preemptive | 7.33 | 4.00 |
-| Priority, preemptive | 5.33 | 2.00 |
+| Round Robin (2 ms quantum) | 6.67 | 3.33 |
+| Priority (non-preemptive) | 7.33 | 4.00 |
+| Priority (preemptive) | 5.33 | 2.00 |
 
-**Try it yourself.** Run Round Robin with the same jobs and a 1 ms quantum. Which jobs get the first three turns? When does P3 finish? Make a guess before you run it.
+For these inputs, SRT has the lowest average waiting time.
+
+## Try it yourself
+
+Run Round Robin again with a 1 ms quantum. Which processes get the first three turns? When does P3 finish?
 
 <details>
 <summary>Check your answer</summary>
 
-The first three turns are P1, P2, and P1. P3 runs from 3 to 4 ms, so it finishes at 4 ms.
+The first three turns go to P1, P2, and P1. P3 runs from 3 to 4 ms, so it finishes at 4 ms.
 
 </details>
+
+[Trace P2 through the Java code](BRIEF.md#trace-p2-through-the-code)
