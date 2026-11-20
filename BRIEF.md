@@ -35,4 +35,4 @@ In the [tutorial’s SRT run](TUTORIAL.md#read-the-gantt-chart), P2 arrives at 1
 3. At **3 ms**, P2 resumes and runs until **5 ms**. The scheduler saves `completion = 5`, and the chart shows P2’s second interval as **3–5 ms**.
 4. `CpuProcess` uses those values to calculate P2’s turnaround (**4 ms**) and waiting time (**1 ms**).
 
-[Compare FCFS, SJF, and Round Robin with the OSTEP Python implementation](README.md#read-the-implementations)
+[Compare FCFS, SJF, and Round Robin with the OSTEP Python implementation](README.md#read-how-to-code)
