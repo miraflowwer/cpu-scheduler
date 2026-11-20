@@ -1,96 +1,142 @@
-# CPU Scheduling Simulator source guide
+# SOURCE GUIDE
 
-[Home](README.md) · [Run the program](README.md#run-the-program) · [Program flowchart](README.md#how-the-simulator-works) · [Activity PDF](CPUScheduling_Larano_Froilan.pdf)
+![Kurisu Makise from Steins;Gate in a retro computer lab lit by monitors and Nixie tubes](assets/source-guide-kurisu.jpg)
 
-[Main](#main) · [CpuProcess](#cpuprocess) · [CpuScheduler](#cpuscheduler) · [GanttChart](#ganttchart) · [Worked example](#worked-example)
+This guide follows one run of the Java CPU Scheduling Simulator from console input to the Gantt chart and results. It explains where each class fits, what the scheduler keeps in memory, and how to reproduce the decisions for a set of processes.
 
-## Follow one run
+## Table of contents
 
-1. **Main** reads the menu choices and creates an array of **CpuProcess** objects. The array stays in input order, so P1 is always the first row in the results.
-2. **CpuScheduler** chooses what runs on one simulated CPU. It tracks the clock and remaining burst times, writes each process’s completion time, and records execution and idle intervals in a **GanttChart**.
-3. **Main** prints the chart, then asks each **CpuProcess** to calculate its turnaround and waiting time. It prints the individual results, totals, and averages before offering another run.
+1. [How a run fits together](#how-a-run-fits-together)
+2. [Main](#main)
+   - [Menu and input](#menu-and-input)
+   - [Results and repeat runs](#results-and-repeat-runs)
+3. [CpuProcess](#cpuprocess)
+4. [CpuScheduler](#cpuscheduler)
+   - [Algorithm selection](#algorithm-selection)
+   - [Shared scheduling loop](#shared-scheduling-loop)
+   - [Round Robin queue](#round-robin-queue)
+   - [Work and storage](#work-and-storage)
+5. [GanttChart](#ganttchart)
+   - [Recording intervals](#recording-intervals)
+   - [Printing intervals](#printing-intervals)
+6. [Worked example](#worked-example)
+   - [Shortest Remaining Time trace](#shortest-remaining-time-trace)
+   - [Round Robin trace](#round-robin-trace)
+   - [Idle gaps and equal ranks](#idle-gaps-and-equal-ranks)
 
-An *arrival* is the earliest time a process can run. Its *burst* is the total CPU time it needs, and its *remaining time* falls as it runs. A process is *ready* when it has arrived and still needs CPU time. The simulation uses milliseconds, a single CPU burst per process, and zero overhead for switching between processes.
+## How a run fits together
+
+1. `Main` reads the menu choices and builds a `CpuProcess[]` in input order. Process IDs start at 1, so the first row represents P1 throughout the run.
+2. `CpuScheduler` starts a simulated clock at zero and copies each burst into a separate array of remaining times. It chooses which process runs, advances the clock, and records completion times on the process objects.
+3. `GanttChart` collects the intervals as execution advances. `Main` prints that chart and calculates the results from the completed process objects.
+
+The simulation models one CPU with one burst per process. All times are simulated milliseconds, with no I/O or time charged for context switches. A process becomes **ready** when its arrival time is at or before the current clock and it still has CPU time left. Several processes can be ready at once, but only one can execute during a given interval.
 
 ## Main
 
-[Open Main.java](src/main/java/com/mycompany/cpuschedulerport/Main.java). This is the console entry point.
+[Main.java](src/main/java/com/mycompany/cpuschedulerport/Main.java) is the console entry point. [`main()`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L17-L110) creates a scanner, random generator, and scheduler before entering the simulation loop. The first command-line argument controls chart formatting. With `--text-chart`, each interval prints on its own line. The default is a boxed chart.
 
-| Method | Who calls it and what it does |
-| --- | --- |
-| [`main(String[] args)`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L17-L110) | Java calls this at launch. It checks whether the first argument is `--text-chart`, creates the scanner, random generator, and scheduler, then enters the simulation loop. Each run reads a process count, scheduling mode, and input mode. It prepares a quantum for Round Robin, dispatches to the scheduler, prints the chart and results, and asks whether to run again. |
-| [`hasModeChoice(int algorithm)`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L116-L118) | `main()` calls it for menu labels and to decide whether to show the preemption prompt. Only Shortest Job First and Priority have a choice. Preemptive Shortest Job First dispatches to Shortest Remaining Time. |
-| [`fixedModeLabel(int algorithm)`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L112-L114) | `main()` uses it for the fixed-mode labels. Round Robin is preemptive because time slices can end before a process finishes. FCFS is non-preemptive and runs the selected process to completion. |
-| [`readNumber(Scanner input, String prompt, int min, int max)`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L154-L170) | `main()` and `readProcesses()` call it for numeric input. It reads and trims a whole line, parses an integer, and retries until the number is in the inclusive range. End of input returns `-1`. The callers use that sentinel to leave the run cleanly. |
-| [`readProcesses(Scanner input, Random random, int count, boolean manual, boolean usePriority)`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L120-L152) | `main()` passes in the process count and input choices. The method assigns IDs starting at 1 and creates a `CpuProcess` for each job. In manual Priority modes it reads priority before arrival and burst. Other modes store priority as `0`. If input ends partway through, it returns `null` and `main()` exits. |
-| [`printResults(CpuProcess[] processes, boolean usePriority)`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L186-L228) | `main()` calls it after printing the chart. It calculates turnaround and waiting for each process, prints columns in input order, and sums the values as it goes. The Priority column appears only in Priority modes. It divides the turnaround and waiting totals by the process count using floating-point arithmetic and prints both averages to two decimal places. |
-| [`runAgain(Scanner input)`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L172-L184) | The simulation loop calls it after each run. It accepts trimmed, case-insensitive `Y` and `N` and retries other answers. `Y` starts a new run with a fresh process array. `N` or end of input exits. |
+### Menu and input
 
-The menu accepts 1–50 processes. Manual values are arrival 0–999 ms, burst 1–99 ms, priority 1–99, and Round Robin quantum 1–99 ms. Random values are arrival 0–10 ms, burst 1–10 ms, priority 1–5 when used, and quantum 1–5 ms for Round Robin.
+1. Enter the number of processes and select an algorithm. [`hasModeChoice()`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L116-L118) enables the mode prompt for Shortest Job First and Priority. [`fixedModeLabel()`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L112-L114) labels FCFS as non-preemptive and Round Robin as preemptive.
+2. Choose manual or random input. For Round Robin, the time quantum is entered or generated before the process values.
+3. [`readProcesses()`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L120-L152) constructs one `CpuProcess` per row. Manual Priority modes ask for priority, arrival, and burst in that order. Other manual modes ask for arrival and burst and store `0` in the priority field.
+4. The [dispatch switch](src/main/java/com/mycompany/cpuschedulerport/Main.java#L82-L94) passes the process array to the selected scheduler method. Round Robin also receives the quantum, and Priority receives the preemption flag.
+
+| Value | Manual entry | Randomized run |
+| --- | ---: | ---: |
+| Process count | 1–50 | Still entered by the user |
+| Arrival | 0–999 ms | 0–10 ms |
+| Burst | 1–99 ms | 1–10 ms |
+| Priority, in Priority mode | 1–99 | 1–5 |
+| Quantum, in Round Robin | 1–99 ms | 1–5 ms |
+
+[`readNumber()`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L154-L170) reads and trims a whole line, parses an integer, and retries when the value is invalid or outside the inclusive range. It returns `-1` when input ends. If that happens while reading a process, `readProcesses()` returns `null`, which ends the run before scheduling a partially populated array.
+
+### Results and repeat runs
+
+[`printResults()`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L186-L228) walks the original array and prints arrival, burst, completion, turnaround, and waiting time for each process. It includes a Priority column only in Priority modes. While printing, it adds up the columns and then divides the turnaround and waiting totals by the process count using floating-point arithmetic. Both averages are displayed to two decimal places. The total in the completion column is the sum of all individual completion timestamps. The end of the schedule is the last time shown in the chart.
+
+[`runAgain()`](src/main/java/com/mycompany/cpuschedulerport/Main.java#L172-L184) accepts trimmed, case-insensitive `Y` or `N`. A yes starts another iteration with a fresh process array and a new chart. A no or end of input exits.
 
 ## CpuProcess
 
-[Open CpuProcess.java](src/main/java/com/mycompany/cpuschedulerport/CpuProcess.java). Each object describes one job.
+[CpuProcess.java](src/main/java/com/mycompany/cpuschedulerport/CpuProcess.java) holds the input and final completion timestamp for one process.
 
-| Method | Who calls it and what it does |
+| Field | Meaning |
 | --- | --- |
-| [`CpuProcess(int id, int arrival, int burst, int priority)`](src/main/java/com/mycompany/cpuschedulerport/CpuProcess.java#L16-L21) | `Main.readProcesses()` calls the constructor once per job. It saves four fixed input fields. The scheduler later sets the separate, mutable `completion` field when the job finishes. |
-| [`turnaround()`](src/main/java/com/mycompany/cpuschedulerport/CpuProcess.java#L23-L25) | `Main.printResults()` calls it to compute `completion - arrival`. This is the entire time the process spends in the system, including time on the CPU. |
-| [`waiting()`](src/main/java/com/mycompany/cpuschedulerport/CpuProcess.java#L27-L29) | `Main.printResults()` calls it for waiting time. It calls `turnaround()` and subtracts the original `burst`, leaving the time spent waiting to run. |
+| `id` | Identifies the process in the console, chart, and tie-breaking rules. |
+| `arrival` | Earliest simulated time when the process can use the CPU. |
+| `burst` | Original amount of CPU time required to finish. |
+| `priority` | Numerical rank used by Priority scheduling. Smaller values rank higher. |
+| `completion` | Clock time at the end of the process’s final interval. The scheduler fills this in. |
 
-The scheduler keeps changing remaining times in a separate array. Preserving the original burst lets the results show the input and calculate waiting time after the schedule.
+The [constructor](src/main/java/com/mycompany/cpuschedulerport/CpuProcess.java#L16-L21) assigns the four fixed input fields. The scheduler decrements values in its own `remaining[]` array, so the process object always retains the original burst for reporting.
+
+- [`turnaround()`](src/main/java/com/mycompany/cpuschedulerport/CpuProcess.java#L23-L25) returns `completion - arrival`. This covers the entire time from arrival through the final execution interval.
+- [`waiting()`](src/main/java/com/mycompany/cpuschedulerport/CpuProcess.java#L27-L29) returns `turnaround() - burst`. In this single-burst model, the result includes time spent waiting both before the first turn and between turns.
 
 ## CpuScheduler
 
-[Open CpuScheduler.java](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java). Every mode returns a `GanttChart` and fills in completion times on the supplied processes.
+[CpuScheduler.java](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java) implements the scheduling policies. Every entry point fills in completion times on the supplied processes and returns a chart that records the timeline.
 
-### Scheduling methods called by Main
+### Algorithm selection
 
-| Menu choice | Method | Selection and execution |
+| Menu choice | Scheduler method | Which ready process runs and for how long |
 | --- | --- | --- |
-| `1` · FCFS | [`firstComeFirstServe(processes)`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L16-L18) | Calls `schedule()` with the arrival rule. The earliest ready arrival runs to completion. |
-| `2 → 1` · Shortest Job First | [`shortestJobFirst(processes)`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L20-L22) | Calls `schedule()` with the burst rule. The ready process with the smallest original burst runs to completion. |
-| `2 → 2` · Shortest Remaining Time | [`shortestRemainingTime(processes)`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L24-L26) | Calls `schedule()` with the remaining-time rule and preemption enabled. It rechecks the ready processes every millisecond. |
-| `3` · Round Robin | [`roundRobin(processes, quantum)`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L101-L137) | Runs its own first-in, first-out queue. The front process runs for up to one quantum. |
-| `4 → 1` or `4 → 2` · Priority | [`priority(processes, preemptive)`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L28-L30) | Passes the Priority rule and the chosen preemption flag to `schedule()`. A smaller priority number ranks higher. The non-preemptive mode runs a full burst, and the preemptive mode rechecks every millisecond. |
+| `1` | [`firstComeFirstServe()`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L16-L18) | The earliest arrival runs until it finishes. |
+| `2 → 1` | [`shortestJobFirst()`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L20-L22) | The smallest original burst runs until the process finishes. |
+| `2 → 2` | [`shortestRemainingTime()`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L24-L26) | The smallest remaining burst runs for 1 ms before the next comparison. |
+| `3` | [`roundRobin()`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L101-L137) | The front of the ready queue runs until the quantum expires or the process finishes, whichever comes first. |
+| `4 → 1` | [`priority(processes, false)`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L28-L30) | The smallest priority number runs until the process finishes. |
+| `4 → 2` | [`priority(processes, true)`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L28-L30) | The smallest priority number runs for 1 ms before the next comparison. |
+
+Shortest Job First and Shortest Remaining Time both favor short work. In the non-preemptive mode, a shorter job arriving during an active burst must wait until the CPU is free. In the preemptive mode, it can take over at the next decision if its burst is strictly less than the current process’s remaining time. The two Priority modes differ in the same way, using priority numbers for the comparison.
 
 ### Shared scheduling loop
 
-[`schedule(CpuProcess[] processes, int rule, boolean preemptive)`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L32-L78) creates a chart and a copy of the burst times, starts the clock at zero, and repeats until all processes finish.
+[`schedule()`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L32-L78) handles FCFS, Shortest Job First, Shortest Remaining Time, and both Priority variants. The `rule` argument chooses how to compare ready processes, and `preemptive` controls the execution step.
 
-1. It skips finished jobs, remembers the next future arrival, and compares jobs that have already arrived.
-2. If none is ready, it jumps directly to the next arrival and records an idle interval with process ID `0`.
-3. If a job is ready, it runs the chosen job for its full remaining time in a non-preemptive mode, or for 1 ms in a preemptive mode. In preemptive modes, the currently running job keeps the CPU if it ties the best ready job on the primary rank.
-4. It advances the clock, reduces the job’s remaining time, and calls `chart.add(id, time, true)`. If the remaining time reaches zero, it sets `completion` to the current time, increments the finished count, and clears the running job.
+1. **Initialize.** [`copyBurstTimes()`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L152-L158) puts each original burst into `remaining[]` at the same index as its process. The clock and finished count start at zero, with `running = -1` to indicate that no process owns the CPU.
+2. **Scan.** Skip entries whose remaining time is zero. Remember the earliest future arrival and consider every unfinished process whose arrival is at or before the clock. [`rank()`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L80-L87) reads the primary comparison value. [`comesBefore()`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L89-L99) picks the smaller rank, breaking ties by earlier arrival and then lower process ID.
+3. **Handle idle time.** If the scan finds no ready process, advance directly to the next arrival and record an interval with ID `0`. The next scan can then choose from the arrivals that just became ready.
+4. **Execute.** In a preemptive mode, keep the running process if it ties the best ready process on the primary rank. A non-preemptive dispatch consumes the selected process’s entire remaining burst. A preemptive dispatch consumes 1 ms and then checks again. Advance the clock by the duration, subtract it from the remaining time, and record the interval.
+5. **Finish.** When the remaining time reaches zero, save the new clock value as `completion`, increment the finished count, and clear `running`. The loop returns the chart after every process has completed.
 
-| Helper | Who calls it and what it does |
-| --- | --- |
-| [`rank(int index, CpuProcess[] processes, int[] remaining, int rule)`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L80-L87) | `comesBefore()` uses it to read the comparison value for the selected rule. It returns arrival, original burst, remaining time, or priority. `schedule()` also uses it to check whether the running job ties the best ready job. |
-| [`comesBefore(int first, int second, CpuProcess[] processes, int[] remaining, int rule)`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L89-L99) | `schedule()` uses it to choose the best ready job. Smaller rank comes first, then earlier arrival, then lower process ID. `arrivalOrder()` also uses this comparison with the arrival rule. |
-| [`copyBurstTimes(CpuProcess[] processes)`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L152-L158) | Both scheduling loops call it at the start. It makes a mutable array of remaining CPU times with one entry per process. |
+The tie rule in step 4 applies only while a job is still running in a preemptive mode. When the CPU next becomes free, the usual arrival and ID tie-breakers apply.
 
 ### Round Robin queue
 
-`roundRobin()` keeps a clock, an `ArrayDeque<Integer>` of ready process indices, and a pointer to the next arrival. [`arrivalOrder(CpuProcess[] processes, int[] remaining)`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L139-L150) builds an array of indices using insertion sort. It orders them by arrival and then by process ID, leaving the original process array in input order.
+Round Robin’s state includes a FIFO `ArrayDeque<Integer>`, a clock, and a pointer called `next` to the first arrival that has yet to enter the queue. [`arrivalOrder()`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java#L139-L150) uses insertion sort to order process indices by arrival, then by ID. The original process array stays in input order for the results table.
 
-If the queue is empty, `roundRobin()` jumps to the next arrival when needed, records any idle time, and enqueues the jobs that are now ready. It takes the front job, runs it for `min(quantum, remaining)`, and records the turn with `chart.add(id, time, false)`. It then enqueues all arrivals through the end of the turn **before** it puts an unfinished job back at the tail. For a finished job, it records the completion time. The loop ends when there are no future arrivals and the ready queue is empty.
+1. If the queue is empty, advance to the next arrival when necessary, record any idle gap, and enqueue the processes ready at the new time.
+2. Remove the first index and run it for `min(quantum, remaining[current])`. An arrival during that slice waits while the current job uses the rest of its turn. Advance the clock, reduce the remaining time, and append the turn to the chart.
+3. Enqueue everyone who arrived through the end of the turn. Jobs that were waiting before the turn stay at the front. New arrivals go behind them, including a job that arrives exactly at the slice boundary.
+4. Record completion if the current job finished. Otherwise, put it at the back of the queue after those new arrivals. Continue until the queue is empty and every arrival has been admitted.
+
+This ordering matters even if two successive slices belong to the same process. Each slice reflects a separate dispatch, so the chart preserves both.
+
+### Work and storage
+
+For `n` processes, each selection in the shared loop scans up to `n` entries. A non-preemptive run has one busy selection per process, while a preemptive run has one per millisecond of CPU work. Each loop jumps over idle gaps. Round Robin’s insertion sort can take quadratic time in `n`. After sorting, queue work grows with the number of processes and time slices. All modes use a remaining-time array with `n` entries. The chart has room for up to the sum of all bursts plus `n` intervals.
 
 ## GanttChart
 
-[Open GanttChart.java](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java). The chart stores process IDs and end times in parallel arrays. The previous interval’s end is the next interval’s start.
+[GanttChart.java](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java) stores a process ID and an end time for each segment in parallel arrays. The first segment starts at zero. Each later segment starts where the preceding one ends. A segment from 1 to 3 ms therefore represents 2 ms of elapsed time.
 
-| Method | Who calls it and what it does |
-| --- | --- |
-| [`GanttChart(CpuProcess[] processes)`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java#L14-L22) | Both scheduling loops create a new chart. The constructor reserves capacity equal to the total burst time plus the number of processes. Each busy interval uses at least 1 ms, and each idle gap ends at a process arrival, so that capacity covers the worst case. |
-| [`add(int processId, int endTime, boolean merge)`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java#L24-L32) | The scheduler calls it after advancing the clock. When merging is enabled and the previous interval has the same ID, it extends that interval. Otherwise it appends the ID and end time. Round Robin passes `false` for CPU turns so separate turns stay visible. |
-| [`print(boolean textOnly)`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java#L34-L59) | `main()` calls it when the schedule is complete. It prints a heading, delegates to `printIntervals()` in text mode, or prints a boxed timeline in rows of up to four intervals. |
-| [`printIntervals()`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java#L61-L67) | `print()` calls it for `--text-chart`. It prints one interval per line with the label, start, end, and duration. |
-| [`startTime(int index)`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java#L69-L74) | Both layouts call it. It returns zero for the first interval and the previous interval’s end time for every later interval. |
-| [`label(int index)`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java#L76-L81) | Both layouts call it. It turns ID `0` into `Idle` and a process ID such as `2` into `P2`. |
+### Recording intervals
+
+The [constructor](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java#L14-L22) allocates enough space for one busy segment per millisecond of work and up to one idle gap per process. Each busy segment consumes at least 1 ms, and each idle gap ends when at least one process arrives.
+
+[`add(processId, endTime, merge)`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java#L24-L32) receives the clock value after each step. When `merge` is true and the previous segment has the same ID, it extends that segment by updating its end time. For example, three consecutive 1 ms updates for P1 can become a single 3 ms segment. The shared scheduler uses this to keep the chart readable in preemptive modes. Round Robin passes `false` for every busy turn so quantum boundaries remain visible.
+
+### Printing intervals
+
+[`print()`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java#L34-L59) displays the default boxed timeline in groups of up to four intervals. In text mode it calls [`printIntervals()`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java#L61-L67), which prints one row per interval with the label, start, end, and duration. Both views use [`startTime()`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java#L69-L74) to derive the start and [`label()`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java#L76-L81) to map `0` to `Idle` and other IDs to labels such as `P2`.
 
 ## Worked example
 
-[Start the simulator](README.md#run-the-program) with `--text-chart`. Enter `3` for the process count, `2` for Shortest Job First, `2` for Preemptive, and `1` for manual entry. Enter each arrival and burst separately, in row order.
+From the project directory, compile with `mvn compile` and launch the text view with `java -cp target/classes com.mycompany.cpuschedulerport.Main --text-chart`. The [Maven configuration](pom.xml) targets Java 26. Use the same three processes in both traces.
 
 | Process | Arrival (ms) | Burst (ms) |
 | --- | ---: | ---: |
@@ -98,7 +144,17 @@ If the queue is empty, `roundRobin()` jumps to the next arrival when needed, rec
 | P2 | 1 | 3 |
 | P3 | 2 | 1 |
 
-`Main.readProcesses()` creates the three jobs and `main()` calls `shortestRemainingTime()`. At 1 ms, P2’s 3 ms burst ranks ahead of P1’s 5 ms remaining. At 2 ms, P3’s 1 ms burst ranks ahead of P2’s 2 ms remaining. P3 finishes at 3 ms, P2 resumes and finishes at 5 ms, then P1 finishes at 10 ms. `GanttChart.add()` merges consecutive milliseconds belonging to the same process, so the chart shows five intervals.
+### Shortest Remaining Time trace
+
+Open menu choices `2` (Shortest Job First), `2` (Preemptive), and `1` (manual input) after selecting a count of `3`. Enter each arrival and burst on separate lines in table order.
+
+| Clock (ms) | Decision |
+| ---: | --- |
+| 0 | P1 is the only ready process and runs for 1 ms. |
+| 1 | P2 arrives with 3 ms of work. P1 has 5 ms left, so P2 takes over. |
+| 2 | P3 arrives with 1 ms of work. P2 has 2 ms left, so P3 takes over and finishes at 3 ms. |
+| 3 | P2 resumes with 2 ms left, ahead of P1 with 5 ms left. P2 finishes at 5 ms. |
+| 5 | P1 resumes and finishes at 10 ms. |
 
 ```text
 P1  0 - 1 ms (1 ms)
@@ -108,6 +164,33 @@ P2  3 - 5 ms (2 ms)
 P1  5 - 10 ms (5 ms)
 ```
 
-For P2, `turnaround()` gives `5 - 1 = 4 ms` and `waiting()` gives `4 - 3 = 1 ms`. The waiting times for P1, P2, and P3 are 4, 1, and 0 ms. `Main.printResults()` reports an average waiting time of 1.67 ms.
+P2 turns around in `5 - 1 = 4 ms` and waits for `4 - 3 = 1 ms`. Its only wait is from 2 to 3 ms while P3 executes.
 
-To follow the other loop in the debugger, reuse those inputs with menu option `3` and a quantum of 2 ms. When P1’s first turn ends, P2 and P3 have both arrived. The queue becomes P2, P3, P1 because arrivals join before P1 can rejoin.
+| Process | Completion (ms) | Turnaround (ms) | Waiting (ms) |
+| --- | ---: | ---: | ---: |
+| P1 | 10 | 10 | 4 |
+| P2 | 5 | 4 | 1 |
+| P3 | 3 | 1 | 0 |
+| Total | 18 | 15 | 5 |
+| Average | | 5.00 | 1.67 |
+
+### Round Robin trace
+
+Select a count of `3`, algorithm `3` (Round Robin), and input mode `1` (manual). Enter a quantum of `2` ms, followed by the same arrivals and bursts. The queue entries below are shown front to back after each turn and before the next dispatch.
+
+| Interval | What happens | Queue after turn |
+| --- | --- | --- |
+| 0–2 ms | P1 uses its quantum. P2 arrives at 1 ms and P3 arrives at 2 ms, so both join before P1 goes to the tail. | P2, P3, P1 |
+| 2–4 ms | P2 uses its quantum and rejoins with 1 ms left. | P3, P1, P2 |
+| 4–5 ms | P3 finishes after 1 ms. | P1, P2 |
+| 5–7 ms | P1 uses another quantum and rejoins with 2 ms left. | P2, P1 |
+| 7–8 ms | P2 finishes after its last millisecond. | P1 |
+| 8–10 ms | P1 finishes after its last 2 ms. | Empty |
+
+P1, P2, and P3 finish at 10, 8, and 5 ms. Their waiting times are 4, 4, and 2 ms. The average turnaround is 6.67 ms and the average waiting time is 3.33 ms. The total CPU time is still 10 ms because both runs execute the same bursts with no idle time.
+
+### Idle gaps and equal ranks
+
+- **Initial and later idle gaps.** Give P1 an arrival of 2 ms and a burst of 2 ms, and P2 an arrival of 6 ms and a burst of 1 ms. FCFS and Round Robin with a quantum of 2 ms both record `Idle 0–2`, `P1 2–4`, `Idle 4–6`, and `P2 6–7`. Both processes have zero waiting time because they execute as soon as they arrive.
+- **Simultaneous arrivals.** In FCFS, two processes with arrival 0 are ordered by ID. With one millisecond of work each, the chart shows P1 from 0 to 1 ms, then P2 from 1 to 2 ms.
+- **Equal rank during preemption.** In preemptive Priority, let P1 arrive at 1 ms with burst 1 and priority 3. Let P2 arrive at 0 ms with burst 4 and priority 3. At 1 ms P1 has the lower ID, but the two jobs have equal priority, so P2 keeps the CPU and finishes at 4 ms. P1 then runs from 4 to 5 ms.
