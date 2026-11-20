@@ -1,26 +1,26 @@
 # CPU Scheduling Simulator
 
-When several processes are ready to run, which one gets the CPU next? This Java console simulator lets you give the same jobs to different scheduling algorithms and see how their decisions change who finishes first and how long each process waits.
+Several jobs need to use one CPU. Which job runs first? This Java program lets you try six schedules and see when each job runs, waits, and finishes.
 
-[Learn the basics](#what-the-scheduler-does) · [Run the simulator](#run-the-simulator) · [Try the example](#try-the-same-jobs-six-ways) · [Read the Java code](#follow-the-java-code) · [Screenshot guide (PDF)](docs/CPU_Scheduling_Simulator.pdf)
+[Learn the basics](#learn-the-basics) · [Run the program](#run-the-program) · [Try the example](#try-the-example) · [Read the code](#read-the-code) · [Screenshot guide (PDF)](docs/CPU_Scheduling_Simulator.pdf)
 
-## What the scheduler does
+## Learn the basics
 
-Imagine a single CPU and a line of jobs. Each job is a **process**, shown as `P1`, `P2`, and so on.
+A **process** is a job that needs time on the CPU. The program calls the jobs **P1**, **P2**, and so on. The **scheduler** decides which job gets the CPU next.
 
-1. At its **arrival time**, a process becomes eligible to run. The **ready queue** is the set of processes that have arrived, still have work left, and are waiting for the CPU.
-2. The scheduler picks a ready process using the selected algorithm. If nobody is ready, the CPU stays **idle** until the next arrival.
-3. The running process uses some CPU time. Its **burst time** is the total CPU time it needs. Its **remaining time** is the part of that burst it still needs.
-4. In a **non-preemptive** schedule, the selected process keeps the CPU until it finishes. In a **preemptive** schedule, the scheduler can pause a process and let another one run. In Round Robin, a **time quantum** is the maximum length of one turn.
-5. The clock time when the process finishes is its **completion time**. The simulator uses that time to calculate turnaround and waiting time.
+1. A job joins the **ready queue** at its **arrival time**. The ready queue holds jobs that can run and are waiting for the CPU.
+2. The scheduler chooses one ready job. If no job is ready, the CPU stays **idle** until the next job arrives.
+3. A job's **burst time** is the total CPU time it needs. Its **remaining time** is the CPU time it still needs after it has run for a while.
+4. In a **non-preemptive** schedule, a job runs until it finishes. In a **preemptive** schedule, the scheduler can pause a job and give the CPU to another job. Round Robin gives each job a turn. The **time quantum** is the longest a turn can last.
+5. The time when a job finishes is its **completion time**.
 
-This model uses one CPU, one burst per process, and simulated milliseconds. It leaves out I/O and the time an operating system spends switching between processes.
+The program uses one CPU and one burst per job. All times are in milliseconds (ms). The model skips input/output waits and the time it takes to switch jobs.
 
-## Run the simulator
+## Run the program
 
-Install a [JDK](https://adoptium.net/) that can compile for Java 26 and [Apache Maven](https://maven.apache.org/install.html) 3.9 or later. JDK 26 matches the project's build target. Use `java -version` and `mvn -version` to check your setup. Maven's output should show that it is using the intended JDK.
+Install [JDK 26](https://adoptium.net/) and [Apache Maven](https://maven.apache.org/install.html) 3.9 or later. The JDK is the tool that builds and runs Java programs. Maven builds this project. Run `java -version` and `mvn -version` to check your setup. The Maven output should show Java 26. A newer JDK also works if it can build for Java 26.
 
-Open a terminal and run the following. Cloning requires access to this private repository. If you downloaded the project as a ZIP, extract it and open a terminal in the folder containing `pom.xml`, then run the last two commands.
+Open a terminal and run these commands. You need access to the private GitHub repository to clone it. If you have a ZIP copy, unzip it, open a terminal in the folder with `pom.xml`, and run the last two commands.
 
 ```sh
 git clone https://github.com/miraflowwer/cpu-scheduler.git
@@ -29,71 +29,84 @@ mvn compile
 java -cp target/classes com.mycompany.cpuschedulerport.Main
 ```
 
-Add `--text-chart` after `Main` to print each time interval on a separate line instead of drawing boxes.
+Add `--text-chart` after `Main` to print one time interval per line. The default view draws boxes.
 
-At the prompts, enter the process count and choose the algorithm by number. SJF and Priority ask you to choose a scheduling mode. Select **Enter values** to reproduce an example, or **Randomize values** to explore a new workload. Manual Round Robin asks for the quantum before the process values. Each process needs an arrival and a burst. Only Priority Scheduling asks for a priority value. After the results, use `Y` for another run or `N` to exit.
+1. Enter the number of jobs. Choose an algorithm by its menu number.
+2. If you choose Shortest Job First or Priority, also choose a scheduling mode.
+3. Choose **Enter values** to type your own numbers. Choose **Randomize values** to let the program pick them.
+4. For a manual Round Robin run, enter the quantum first. Then enter an arrival and a burst for each job. Only Priority Scheduling also asks for a priority for each job.
+5. When you see the results, enter `Y` to run again or `N` to exit.
 
-## Try the same jobs six ways
+## Try the example
 
-Enter these three processes in order. All times are in milliseconds.
+Use these three jobs for every run. Enter each value on its own line. Enter the priority values only for option 4.
 
-| Process | Arrival | Burst | Priority (only for option 4) |
+| Job | Arrival (ms) | Burst (ms) | Priority |
 | --- | ---: | ---: | ---: |
 | P1 | 0 | 6 | 3 |
 | P2 | 1 | 3 | 1 |
 | P3 | 2 | 1 | 2 |
 
-To run **Shortest Remaining Time** first, enter `3` for the number of processes, `2` for Shortest Job First, `2` for preemptive mode, and `1` for manual input. Enter each process's arrival and burst on separate lines, in table order.
+For your first run, try **Shortest Remaining Time**. Enter `3` for the job count, `2` for Shortest Job First, `2` for preemptive mode, and `1` for manual input. Then enter `0`, `6`, `1`, `3`, `2`, and `1` for the three jobs.
 
-### How the choices change the timeline
+### Read the Gantt chart
 
-An interval like `P1 0–1` means P1 runs from time 0 up to time 1. Read the intervals left to right. A process can appear more than once because it can pause and resume.
+A **Gantt chart** is a timeline. It shows who uses the CPU and when. Read it from left to right. `P1 0–1` means P1 runs from time 0 up to time 1. A job can appear again after a pause.
 
-| Menu choice | What happens with these jobs | Gantt chart intervals (ms) |
+| Menu choice | Why the jobs run in this order | Time intervals (ms) |
 | --- | --- | --- |
-| **1 · First Come First Serve (FCFS)** | P1 starts first and finishes its burst. P2 arrived ahead of P3, so it goes next. | `P1 0–6 · P2 6–9 · P3 9–10` |
-| **2 → 1 · Shortest Job First (SJF)** | At time 0, only P1 is ready. When it finishes, P3 has the shorter burst of the two waiting jobs. | `P1 0–6 · P3 6–7 · P2 7–10` |
-| **2 → 2 · Shortest Remaining Time (SRT)** | P2 arrives with 3 ms of work while P1 still has 5 ms left. P3 then arrives with 1 ms while P2 has 2 ms left. After P3, P2 and then P1 resume. | `P1 0–1 · P2 1–2 · P3 2–3 · P2 3–5 · P1 5–10` |
-| **3 · Round Robin (2 ms quantum)** | P1 uses its first turn. P2 and P3 have arrived by time 2, so they queue ahead of the returning P1. Each unfinished job goes to the back after its turn. | `P1 0–2 · P2 2–4 · P3 4–5 · P1 5–7 · P2 7–8 · P1 8–10` |
-| **4 → 1 · Priority, non-preemptive** | P1 finishes its whole burst. P2 then goes ahead of P3 because a smaller number means a higher priority in this simulator. | `P1 0–6 · P2 6–9 · P3 9–10` |
-| **4 → 2 · Priority, preemptive** | P2 interrupts P1 at time 1. P3 arrives while P2 is running and waits because P2 still has higher priority. When P2 finishes, P3 goes before P1. | `P1 0–1 · P2 1–4 · P3 4–5 · P1 5–10` |
+| **1 · First Come First Serve (FCFS)** | P1 arrives first and runs until it finishes. P2 arrived before P3, so P2 goes next. | `P1 0–6 · P2 6–9 · P3 9–10` |
+| **2 → 1 · Shortest Job First (SJF)** | Only P1 is ready at time 0, so it runs until time 6. P3 goes next because its burst is shorter than P2's. | `P1 0–6 · P3 6–7 · P2 7–10` |
+| **2 → 2 · Shortest Remaining Time (SRT)** | P2 arrives with 3 ms of work. P1 has 5 ms left, so P2 takes over. At time 2, P3 has 1 ms of work and P2 has 2 ms left. P3 takes over. When P3 finishes, P2 and then P1 finish their work. | `P1 0–1 · P2 1–2 · P3 2–3 · P2 3–5 · P1 5–10` |
+| **3 · Round Robin (quantum 2 ms)** | P1 runs for up to 2 ms. By the end of that turn, P2 and P3 have arrived. They get in line before P1 returns to the back. | `P1 0–2 · P2 2–4 · P3 4–5 · P1 5–7 · P2 7–8 · P1 8–10` |
+| **4 → 1 · Priority, non-preemptive** | A lower number means higher priority. P1 finishes its whole burst. P2 goes before P3 because 1 is lower than 2. | `P1 0–6 · P2 6–9 · P3 9–10` |
+| **4 → 2 · Priority, preemptive** | P2 has higher priority and takes over at time 1. P3 waits for P2 to finish, then goes before P1. | `P1 0–1 · P2 1–4 · P3 4–5 · P1 5–10` |
 
-For FCFS, SJF, SRT, and Priority, the simulator breaks equal ranks by earlier arrival and then lower process ID. When SRT or preemptive Priority finds a ready process tied with the running one, the running process keeps the CPU. In Round Robin, simultaneous arrivals enter in process ID order. Arrivals through the end of a slice, including the exact endpoint, join the queue before the unfinished process reenters it.
+A **tie** happens when two jobs are equally good choices. In FCFS, SJF, SRT, and Priority, the earlier arrival wins a tie. If both arrived at the same time, the lower job number wins. In SRT and preemptive Priority, the running job keeps the CPU if another job ties with it.
 
-### Read the results table
+Round Robin puts jobs that arrive at the same time in job number order. If a job arrives just as a turn ends, it joins the queue before the job that just ran goes back in line.
 
-- **Completion** is the end of the last interval for that process.
-- **Turnaround** is completion minus arrival. It covers the process's entire time in the simulation, from arrival to finish.
-- **Waiting** is turnaround minus burst. It adds up all the time spent ready and waiting, including any wait between turns.
+### Read the results
 
-For SRT, P2 runs from 1 to 2, waits while P3 runs, then finishes at 5. Its turnaround is `5 − 1 = 4 ms`. Its waiting time is `4 − 3 = 1 ms`.
+- **Completion** is the end time of a job's last turn.
+- **Turnaround** is the time from arrival to completion. Subtract arrival from completion.
+- **Waiting** is the total time the job spent ready but waiting for the CPU. Subtract burst from turnaround.
 
-| Process | Completion (ms) | Turnaround (ms) | Waiting (ms) |
+In the SRT run, P2 arrives at 1 ms and finishes at 5 ms. Its turnaround is `5 − 1 = 4 ms`. Its burst is 3 ms, so it waited `4 − 3 = 1 ms`.
+
+| Job | Completion (ms) | Turnaround (ms) | Waiting (ms) |
 | --- | ---: | ---: | ---: |
 | P1 | 10 | 10 | 4 |
 | P2 | 5 | 4 | 1 |
 | P3 | 3 | 1 | 0 |
 
-Add the per-process times and divide by 3 to get the averages. For these particular inputs, SRT reduces average waiting time from FCFS's 4.00 ms to 1.67 ms.
+To find the average waiting time, add the three waiting times and divide by 3. For these jobs, SRT has the lowest average waiting time. Try a different set of jobs to see how the results change.
 
 | Schedule | Average turnaround (ms) | Average waiting (ms) |
 | --- | ---: | ---: |
 | FCFS | 7.33 | 4.00 |
 | SJF | 6.67 | 3.33 |
 | SRT | 5.00 | 1.67 |
-| Round Robin, quantum 2 | 6.67 | 3.33 |
+| Round Robin, quantum 2 ms | 6.67 | 3.33 |
 | Priority, non-preemptive | 7.33 | 4.00 |
 | Priority, preemptive | 5.33 | 2.00 |
 
-## Follow the Java code
+## Read the code
 
-| Open this file | What to look for |
+| Java file | Where to start |
 | --- | --- |
-| [`Main.java`](src/main/java/com/mycompany/cpuschedulerport/Main.java) | Start at `main()`. It reads settings, builds the processes, calls the selected scheduler, and prints the results. |
-| [`CpuProcess.java`](src/main/java/com/mycompany/cpuschedulerport/CpuProcess.java) | See which values each process stores and how `turnaround()` and `waiting()` use its completion time. |
-| [`CpuScheduler.java`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java) | Follow `schedule()` as it scans eligible jobs, runs the best-ranked one, or advances to the next arrival when idle. Then read `roundRobin()` to see how the `ArrayDeque` takes jobs from the front and adds them at the back. |
-| [`GanttChart.java`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java) | Follow `add()` as it records a process and its interval end. The print methods derive each interval start from the preceding interval's end. The chart keeps Round Robin turns visible as separate slices. |
+| [`Main.java`](src/main/java/com/mycompany/cpuschedulerport/Main.java) | Start at `main()`. It reads your choices, creates the jobs, calls the scheduler, and prints the results. |
+| [`CpuProcess.java`](src/main/java/com/mycompany/cpuschedulerport/CpuProcess.java) | See what the program stores for each job. Read `turnaround()` and `waiting()` to find the two formulas. |
+| [`CpuScheduler.java`](src/main/java/com/mycompany/cpuschedulerport/CpuScheduler.java) | Read `schedule()` to see how the program picks a ready job or waits for the next arrival. Then read `roundRobin()`. It uses an `ArrayDeque`, a Java queue that lets the program take a job from the front and add it to the back. |
+| [`GanttChart.java`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java) | Read `add()` to see how the chart stores each turn's end time. A turn begins where the last one ends. The chart shows each Round Robin turn on its own. |
 
-**Try it yourself.** Keep the same inputs and change the Round Robin quantum from 2 to 1 ms. Predict the first three turns and P3's completion time before you run it. Compare the resulting waiting times with the 2 ms run.
+**Try it yourself.** Run Round Robin with the same jobs and a 1 ms quantum. Which jobs get the first three turns? When does P3 finish? Make a guess before you run it.
+
+<details>
+<summary>Check your answer</summary>
+
+The first three turns are P1, P2, and P1. P3 runs from 3 to 4 ms, so it finishes at 4 ms.
+
+</details>
 
 Developed by Froilan Requejo and Gabriel Laraño for Fundamentals of Programming.
