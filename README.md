@@ -1,4 +1,8 @@
-<img src="docs/assets/java.svg" width="64" alt="Java logo">
+<p align="center">
+  <img src="docs/assets/java.svg" width="64" alt="Java">
+  &nbsp; Developed by &nbsp;
+  <a href="https://github.com/miraflowwer"><img src="docs/assets/295236160.png" width="64" alt="miraflowwer"></a>
+</p>
 
 # CPU Scheduling Simulator
 
@@ -8,7 +12,7 @@ Which job gets the CPU next? Run this Java console program to compare six schedu
 | --- | --- |
 | [Learn CPU scheduling](docs/TUTORIAL.md) | Try three jobs, compare six schedules, and check your answer. |
 | [Explore the Java code](docs/BRIEF.md) | Follow one run from the menu to the results. |
-| [View the activity PDF](docs/CPU_Scheduling_Simulator.pdf) | Read the code screenshots and see sample output. |
+| [View the activity PDF](docs/CPUScheduling_Larano_Froilan.pdf) | Read the code screenshots and see sample output. |
 | [Run the program](#run-the-program) | Build the project and enter your own jobs. |
 
 ## Video lessons

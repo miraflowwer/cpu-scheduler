@@ -15,4 +15,4 @@
 
 In the tutorial's SRT run, P2 arrives at 1 ms. The scheduler compares its 3 ms burst with P1's 5 ms left. At 2 ms, P3 takes over. P2 runs again from 3 to 5 ms. The chart stores both P2 intervals. Its last end time, 5 ms, becomes P2's completion time.
 
-[See the source screenshots (PDF)](CPU_Scheduling_Simulator.pdf)
+[See the source screenshots (PDF)](CPUScheduling_Larano_Froilan.pdf)
