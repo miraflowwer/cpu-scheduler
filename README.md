@@ -11,30 +11,57 @@
 Compare six CPU scheduling modes with this Java console program. Enter your own processes or generate them randomly, then use the Gantt chart and timing results to see who runs next and how long each process waits.
 
 <p align="center">
-  <a href="TUTORIAL.md">Tutorial</a> ·
-  <a href="BRIEF.md">Source guide</a> ·
+  <a href="SOURCE.md">Source guide</a> ·
   <a href="CPUScheduling_Larano_Froilan.pdf">Activity PDF</a>
 </p>
 
 ## Run the program
 
-Install [JDK 26](https://adoptium.net/) and [Apache Maven 3.9 or later](https://maven.apache.org/install.html). Run `java -version` and `mvn -version` to check your setup. Maven should report Java 26 or a newer JDK that can build for Java 26.
-
-If you have access to the repository, clone it and open the project directory.
+Install **JDK 26** (or a newer JDK that supports compiling for Java 26) and **Apache Maven 3.9 or later**. If you have Git and repository access, the clone commands below work in both macOS Terminal and Windows PowerShell.
 
 ```sh
 git clone https://github.com/miraflowwer/cpu-scheduler.git
 cd cpu-scheduler
 ```
 
-If you have a ZIP copy, extract it and open a terminal in the folder containing `pom.xml`. Then build and start the simulator.
+If you have a ZIP copy, extract it and open Terminal or PowerShell in the folder that contains `pom.xml`.
+
+### macOS (Terminal)
+
+1. Install [JDK 26](https://adoptium.net/temurin/releases/?version=26) for Apple Silicon (AArch64) or Intel (x64), depending on your Mac.
+2. If you use Homebrew, run `brew install maven`. For a manual installation, extract the [Maven binary archive](https://maven.apache.org/download.cgi) and add its `bin` directory to your shell’s `PATH`. See the [Maven installation guide](https://maven.apache.org/install.html).
+3. Open Terminal and verify the tools, then compile and run the project.
 
 ```sh
+java -version
+mvn -version
 mvn compile
 java -cp target/classes com.mycompany.cpuschedulerport.Main
 ```
 
-The default chart uses boxes. Add `--text-chart` after `Main` to print one interval per line. For a set of inputs you can try immediately, use the [tutorial’s three-process example](TUTORIAL.md#run-the-example).
+If the version checks pick another JDK, run the following in the same Terminal window and retry.
+
+```sh
+export JAVA_HOME="$(/usr/libexec/java_home -v 26)"
+export PATH="$JAVA_HOME/bin:$PATH"
+```
+
+### Windows (PowerShell)
+
+1. Install [JDK 26](https://adoptium.net/temurin/releases/?version=26) using the Windows installer for your system.
+2. Download and extract the [Maven binary ZIP](https://maven.apache.org/download.cgi). In **Edit environment variables for your account**, set `JAVA_HOME` to your JDK installation folder. Add `%JAVA_HOME%\bin` and the extracted Maven folder’s `bin` directory (for example, `C:\Tools\apache-maven-3.9.x\bin`) to your user `Path`. Use the actual version in the folder name.
+3. Open a new PowerShell window so it picks up the environment variables. Go to the folder containing `pom.xml`, then verify the tools, compile, and run.
+
+```powershell
+java -version
+mvn -version
+mvn compile
+java -cp ".\target\classes" com.mycompany.cpuschedulerport.Main
+```
+
+Check that both version commands report Java 26 or a compatible newer JDK before compiling. If Windows finds an older Java, `Get-Command java` shows which executable PowerShell picks up. To use the selected JDK first in the current session, run `$env:Path = "$env:JAVA_HOME\bin;$env:Path"` and check again.
+
+The default chart uses boxes. Add `--text-chart` after `Main` to print one interval per line. To try a complete run, follow the [worked example](SOURCE.md#worked-example).
 
 ## Learn the scheduling algorithms
 
@@ -76,14 +103,6 @@ Select a preview or title to watch the lesson on YouTube.
   </tr>
 </table>
 </div>
-
-### Read how to code
-
-| Resource | What to look for |
-| --- | --- |
-| [OSTEP scheduling chapter (PDF)](https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-sched.pdf) | Worked examples of FIFO, shortest-job scheduling, and Round Robin. |
-| [OSTEP Python scheduler](https://github.com/remzi-arpacidusseau/ostep-homework/blob/master/cpu-sched/scheduler.py#L51-L120) | Follow how FIFO (also called FCFS) walks the job list, SJF sorts by job length, and Round Robin moves unfinished jobs to the back of the queue. |
-| [All six modes in Java](BRIEF.md#find-the-algorithm-in-java) | Jump to each method and see how the simulator handles arrivals, ties, and preemption. |
 
 ## How the simulator works
 
@@ -200,9 +219,9 @@ flowchart TD
 
 | Class | Role |
 | --- | --- |
-| [`Main`](BRIEF.md#follow-one-run) | Reads your choices, starts the schedule, and prints the results. |
+| [`Main`](SOURCE.md#main) | Reads your choices, starts the schedule, and prints the results. |
 | [`CpuProcess`](src/main/java/com/mycompany/cpuschedulerport/CpuProcess.java) | Stores process data and calculates turnaround and waiting times. |
-| [`CpuScheduler`](BRIEF.md#find-the-algorithm-in-java) | Chooses which process runs, advances the clock, and records when processes finish. |
+| [`CpuScheduler`](SOURCE.md#cpuscheduler) | Chooses which process runs, advances the clock, and records when processes finish. |
 | [`GanttChart`](src/main/java/com/mycompany/cpuschedulerport/GanttChart.java) | Records and displays CPU intervals, including idle time. |
 
 ---
