@@ -4,19 +4,6 @@
 
 ## Follow one run
 
-```mermaid
-flowchart TD
-    A["Main reads the menu and job times"] --> B["CpuProcess stores one job"]
-    B --> C{"Which scheduling rule?"}
-    C -->|Round Robin| D["roundRobin takes the first job in the queue"]
-    C -->|Other rules| E["schedule picks a ready job"]
-    D --> F["GanttChart records each interval"]
-    E --> F
-    F --> G["Main prints the chart and asks each job for its times"]
-    classDef input fill:#e4eff8,color:#142d42,stroke:#426989
-    class A,B input
-```
-
 | Java file | Where to start |
 | --- | --- |
 | [`Main.java`](../src/main/java/com/mycompany/cpuschedulerport/Main.java) | Start at `main()`. It reads your choices, creates the jobs, calls the scheduler, and prints the results. |
@@ -27,7 +14,5 @@ flowchart TD
 ## Trace P2 through the code
 
 In the tutorial's SRT run, P2 arrives at 1 ms. The scheduler compares its 3 ms burst with P1's 5 ms left. At 2 ms, P3 takes over. P2 runs again from 3 to 5 ms. The chart stores both P2 intervals. Its last end time, 5 ms, becomes P2's completion time.
-
-[Open the interactive source map](source-map.html) on GitHub to download it. Open the downloaded HTML file in a browser and select a class to see its role. The file works offline.
 
 [See the source screenshots (PDF)](CPU_Scheduling_Simulator.pdf)
