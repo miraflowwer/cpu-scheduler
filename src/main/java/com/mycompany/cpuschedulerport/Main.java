@@ -28,8 +28,14 @@ public class Main {
             if (count == -1) return;
             System.out.printf("\nSelect your scheduling algorithm.\n\n");
             for (int i = 0; i < ALGORITHMS.length; i++) {
-                System.out.printf("%d. %s (%s)\n", i + 1, ALGORITHMS[i],
-                                  hasModeChoice(i + 1) ? "Choose a mode" : fixedModeLabel(i + 1) + " only");
+                int algorithmNumber = i + 1;
+                String menuModeLabel;
+                if (hasModeChoice(algorithmNumber)) {
+                    menuModeLabel = "Choose a mode";
+                } else {
+                    menuModeLabel = fixedModeLabel(algorithmNumber) + " only";
+                }
+                System.out.printf("%d. %s (%s)\n", algorithmNumber, ALGORITHMS[i], menuModeLabel);
             }
             System.out.printf("\n");
             int algorithm = readNumber(input, "Scheduling algorithm", 1, ALGORITHMS.length);
@@ -94,9 +100,14 @@ public class Main {
             }
 
             System.out.printf("\n");
-            String modeLabel = preemptive ? "Preemptive" : "Non-preemptive";
-            if (algorithm == 2 && preemptive) {
-                modeLabel += " — Shortest Remaining Time";
+            String modeLabel;
+            if (preemptive) {
+                modeLabel = "Preemptive";
+                if (algorithm == 2) {
+                    modeLabel += " — Shortest Remaining Time";
+                }
+            } else {
+                modeLabel = "Non-preemptive";
             }
             System.out.printf("Simulation %d — %s (%s)\n", ++simulation, ALGORITHMS[algorithm - 1], modeLabel);
             if (algorithm == 3) {
@@ -110,7 +121,10 @@ public class Main {
     }
 
     private static String fixedModeLabel(int algorithm) {
-        return algorithm == 3 ? "Preemptive" : "Non-preemptive";
+        if (algorithm == 3) {
+            return "Preemptive";
+        }
+        return "Non-preemptive";
     }
 
     private static boolean hasModeChoice(int algorithm) {
